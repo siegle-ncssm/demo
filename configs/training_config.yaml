@@ -1,0 +1,61 @@
+# ML Training Pipeline Configuration
+
+# Data Configuration
+data:
+  path: "data/raw/training_data.csv"
+  format: "csv"
+  target_column: "target"
+  test_size: 0.2
+  val_size: 0.2
+  use_spark: false  # Set to true for large-scale data
+
+# MLflow Configuration
+mlflow:
+  tracking_uri: "mlruns"
+  experiment_name: "ml-demo-project"
+
+# Model Configuration
+models:
+  # PyTorch Configuration
+  pytorch:
+    enabled: true
+    hidden_dims: [256, 128, 64]
+    dropout: 0.3
+    use_attention: true
+    use_residual: true
+    use_batch_norm: true
+    optimizer: "adamw"
+    learning_rate: 0.001
+    batch_size: 32
+    epochs: 100
+    patience: 15
+
+  # TensorFlow Configuration
+  tensorflow:
+    enabled: true
+    model_type: "residual"  # residual or attention
+    num_blocks: 3
+    hidden_dim: 256
+    dropout_rate: 0.3
+    batch_size: 32
+    epochs: 100
+
+  # Scikit-learn Configuration
+  sklearn:
+    enabled: true
+    task: "regression"  # regression or classification
+    model_types:
+      - xgb
+      - lgb
+      - rf
+      - catboost
+    optimize_hyperparams: true
+    n_trials: 100
+    use_ensemble: true
+
+# Model Registry
+model_registry_name: "ml-demo-model"
+
+# Output Configuration
+output_dir: "output"
+log_dir: "logs"
