@@ -1,7 +1,6 @@
 """
 PyTorch Model Implementation
 Advanced neural network architectures with production best practices
-Demonstrates 3+ years of experience with industry ML frameworks
 """
 
 import torch
