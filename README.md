@@ -81,8 +81,9 @@ ml-demo-project/
 
 ### Prerequisites
 
-- Python 3.10+
-- Docker and Docker Compose
+- Python 3.9+
+- [uv](https://docs.astral.sh/uv/) - Modern Python package manager (install: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
+- Docker and Docker Compose (optional, for containerized deployment)
 - Kubernetes (optional, for K8s deployment)
 - AWS/Azure/GCP CLI (optional, for cloud deployment)
 
@@ -94,38 +95,66 @@ git clone https://github.com/your-org/ml-demo-project.git
 cd ml-demo-project
 ```
 
-2. Create virtual environment:
+2. Install dependencies (uv automatically creates and manages the virtual environment):
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+uv sync
 ```
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+That's it! All dependencies are installed and ready to use.
 
 ### Local Development
 
 #### Run Data Processing Pipeline
 
 ```bash
-python src/data_pipeline/spark_processing.py
+uv run python src/data_pipeline/spark_processing.py
 ```
 
 #### Train Models
 
 ```bash
-python pipelines/training_pipeline.py --config configs/training_config.yaml
+uv run python pipelines/training_pipeline.py --config configs/training_config.yaml
+# Or using the installed CLI command:
+uv run ml-train --config configs/training_config.yaml
 ```
 
 #### Start API Server
 
 ```bash
-uvicorn src.serving.api:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn src.serving.api:app --host 0.0.0.0 --port 8000 --reload
+# Or using the installed CLI command:
+uv run ml-serve
 ```
 
 Access API documentation at: http://localhost:8000/docs
+
+#### Development Workflow
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov
+
+# Format code with Ruff
+uv run ruff format .
+
+# Lint code with Ruff
+uv run ruff check .
+
+# Lint and auto-fix issues
+uv run ruff check --fix .
+
+# Type checking with mypy
+uv run mypy src
+
+# Install pre-commit hooks (one-time setup)
+uvx pre-commit install
+
+# Run pre-commit hooks manually
+uvx pre-commit run --all-files
+```
 
 ### Docker Deployment
 
@@ -241,13 +270,19 @@ Access monitoring dashboards:
 
 Run all tests:
 ```bash
-pytest tests/ -v --cov=src
+uv run pytest tests/ -v --cov=src
 ```
 
 Run specific test suite:
 ```bash
-pytest tests/test_models.py -v
-pytest tests/test_api.py -v
+uv run pytest tests/test_models.py -v
+uv run pytest tests/test_api.py -v
+```
+
+Run tests with coverage report:
+```bash
+uv run pytest --cov --cov-report=html
+# Open htmlcov/index.html to view detailed coverage report
 ```
 
 ## Monitoring & Alerting
@@ -266,13 +301,50 @@ Automatic detection of:
 - Target drift (label distribution changes)
 - Concept drift (model performance degradation)
 
+## Dependency Management
+
+This project uses [uv](https://docs.astral.sh/uv/) for modern Python dependency management.
+
+### Adding Dependencies
+
+```bash
+# Add a runtime dependency
+uv add package-name
+
+# Add a development dependency
+uv add --dev package-name
+
+# Add with version constraints
+uv add "pandas>=2.0,<3.0"
+```
+
+### Updating Dependencies
+
+```bash
+# Update all dependencies
+uv lock --upgrade
+
+# Sync environment with lock file
+uv sync
+```
+
+### Removing Dependencies
+
+```bash
+uv remove package-name
+```
+
 ## Contributing
 
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+3. Install development dependencies: `uv sync --all-extras`
+4. Install pre-commit hooks: `uvx pre-commit install`
+5. Make your changes and ensure tests pass: `uv run pytest`
+6. Format and lint code: `uv run ruff format . && uv run ruff check --fix .`
+7. Commit changes (`git commit -m 'Add amazing feature'`)
+8. Push to branch (`git push origin feature/amazing-feature`)
+9. Open Pull Request
 
 ## Skills Demonstrated
 
@@ -307,8 +379,11 @@ Automatic detection of:
 - Infrastructure as Code
 
 ### Best Practices
-- Comprehensive testing
-- Code quality (Black, Flake8, MyPy)
+- Comprehensive testing with pytest
+- Modern code quality tooling (Ruff for formatting/linting, MyPy for type checking)
+- PEP 621 compliant pyproject.toml
+- Automated pre-commit hooks
+- Reproducible environments with uv lock files
 - Documentation
 - Monitoring and observability
 - Security hardening
@@ -324,7 +399,9 @@ For questions or support, please open an issue on GitHub.
 ## Acknowledgments
 
 Built with:
-- PyTorch, TensorFlow, scikit-learn
-- Apache Spark, MLflow, FastAPI
-- Docker, Kubernetes
-- Prometheus, Grafana
+- **ML Frameworks**: PyTorch, TensorFlow, scikit-learn
+- **Data Processing**: Apache Spark, Pandas, Polars
+- **MLOps**: MLflow, FastAPI, Optuna
+- **Infrastructure**: Docker, Kubernetes
+- **Monitoring**: Prometheus, Grafana
+- **Development Tools**: uv, Ruff, pytest, pre-commit
