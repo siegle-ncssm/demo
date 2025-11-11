@@ -225,6 +225,93 @@ Access monitoring dashboards:
 - Grafana: http://localhost:3000 (admin/admin)
 - MLflow: http://localhost:5000
 
+## Execution Step Framework
+
+This project includes a flexible execution step framework for building modular, reusable pipeline components.
+
+### Quick Start with Execution Steps
+
+Run the sample execution pipeline:
+
+```bash
+uv run python pipelines/sample_steps.py
+```
+
+This will execute a complete pipeline with the sample dataset including:
+1. Data loading from `data/raw/sample_data.csv`
+2. Data validation (checking for missing values and duplicates)
+3. Feature engineering (creating aggregation features)
+4. Model training summary
+
+### Creating Custom Execution Steps
+
+All execution steps inherit from the `ExecutionStep` base class:
+
+```python
+from pipelines.execution_step import ExecutionStep
+from typing import Any, Dict
+
+class MyCustomStep(ExecutionStep):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(
+            name="my_custom_step",
+            description="Description of what this step does",
+            dependencies=["previous_step_name"],  # Optional
+            config=config
+        )
+
+    def validate(self) -> bool:
+        """Validate step is ready to execute."""
+        return True
+
+    def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Main step logic."""
+        # Your step implementation here
+        result = {"output_key": "output_value"}
+        return result
+```
+
+### Execution Step Features
+
+- **Dependency Management**: Steps declare dependencies and only execute when satisfied
+- **Lifecycle Hooks**: `pre_execute()`, `execute()`, `post_execute()`, `on_failure()`
+- **Status Tracking**: Automatic tracking of execution status and timing
+- **Validation**: Built-in validation before execution
+- **Error Handling**: Graceful error handling with detailed logging
+- **Metadata**: Store step-specific metadata for tracking and debugging
+
+### Available Sample Steps
+
+- **DataLoadingStep**: Load data from CSV or Parquet files
+- **DataValidationStep**: Validate data quality (missing values, duplicates, etc.)
+- **FeatureEngineeringStep**: Create engineered features (interactions, polynomials, aggregations)
+- **ModelTrainingStep**: Train ML models with configurable parameters
+
+### Pipeline Orchestration
+
+Use the `StepPipeline` class to orchestrate multiple steps:
+
+```python
+from pipelines.sample_steps import (
+    DataLoadingStep, DataValidationStep,
+    FeatureEngineeringStep, StepPipeline
+)
+
+# Define steps
+steps = [
+    DataLoadingStep(config={"data_path": "data/raw/sample_data.csv"}),
+    DataValidationStep(config={"max_missing_percent": 5}),
+    FeatureEngineeringStep(config={"create_aggregations": True})
+]
+
+# Create and run pipeline
+pipeline = StepPipeline(steps)
+results = pipeline.run()
+
+# Get execution summary
+summary = pipeline.get_summary()
+```
+
 ## Architecture
 
 ### Data Pipeline
