@@ -1,7 +1,6 @@
 """
 Production ML Training Pipeline
 End-to-end orchestration of data processing, training, and deployment
-Demonstrates 3+ years of production data pipeline experience
 """
 
 import sys

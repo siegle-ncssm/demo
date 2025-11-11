@@ -1,6 +1,6 @@
 """
 Distributed Data Processing Pipeline using Apache Spark
-Demonstrates 6+ years of distributed computing experience with production-ready patterns
+Production-ready distributed data processing patterns
 """
 
 from typing import Optional, Dict, Any, List

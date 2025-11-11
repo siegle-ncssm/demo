@@ -1,10 +1,10 @@
 # ML Demo Project - Production Machine Learning System
 
-A comprehensive production-ready machine learning system demonstrating 6+ years of distributed computing, 4+ years of Python programming, and 2+ years of ML systems experience.
+A comprehensive production-ready machine learning system.
 
 ## Overview
 
-This project showcases a complete end-to-end machine learning platform with:
+This project includes a complete end-to-end machine learning platform with:
 
 - **Distributed Data Processing**: Apache Spark for large-scale data processing
 - **Multiple ML Frameworks**: PyTorch, TensorFlow, and scikit-learn implementations
@@ -346,27 +346,27 @@ uv remove package-name
 8. Push to branch (`git push origin feature/amazing-feature`)
 9. Open Pull Request
 
-## Skills Demonstrated
+## Key Capabilities
 
-### Distributed Computing (6+ years)
+### Distributed Computing
 - Apache Spark for large-scale data processing
 - Distributed training with Ray and Dask
 - Optimized cluster configurations
 - Streaming data pipelines
 
-### Python Programming (4+ years)
+### Python Programming
 - Advanced OOP and design patterns
 - Type hints and static analysis
 - Performance optimization
 - Testing best practices
 
-### ML Systems (2+ years)
+### ML Systems
 - PyTorch, TensorFlow, scikit-learn
 - Hyperparameter optimization
 - Model ensembling
 - Production deployment
 
-### Production Pipelines (3+ years)
+### Production Pipelines
 - End-to-end ML pipelines
 - Data validation and quality checks
 - Model monitoring and drift detection
