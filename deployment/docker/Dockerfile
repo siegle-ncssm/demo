@@ -12,14 +12,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
+# Install uv for fast dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --user -r requirements.txt
+# Copy project files
+COPY pyproject.toml .
+COPY src ./src
+
+# Install Python dependencies using uv
+# --system flag installs to system Python instead of venv
+RUN uv pip install --system --no-cache .
 
 # Stage 2: Runtime
 FROM python:3.10-slim
@@ -36,8 +41,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python packages from builder
-COPY --from=builder /root/.local /home/mluser/.local
+# Copy Python packages from builder (installed to system Python)
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY --chown=mluser:mluser . .
@@ -45,8 +51,7 @@ COPY --chown=mluser:mluser . .
 # Switch to non-root user
 USER mluser
 
-# Add local bin to PATH
-ENV PATH=/home/mluser/.local/bin:$PATH
+# Set Python path
 ENV PYTHONPATH=/app:$PYTHONPATH
 
 # Expose port
