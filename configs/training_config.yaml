@@ -2,7 +2,7 @@
 
 # Data Configuration
 data:
-  path: "data/raw/training_data.csv"
+  path: "data/raw/sample_data.csv"
   format: "csv"
   target_column: "target"
   test_size: 0.2
