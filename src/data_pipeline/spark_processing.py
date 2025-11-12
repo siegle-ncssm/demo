@@ -3,13 +3,21 @@ Distributed Data Processing Pipeline using Apache Spark
 Production-ready distributed data processing patterns
 """
 
-from typing import Optional, Dict, Any, List
-from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql import functions as F
-from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, TimestampType
-from pyspark.sql.window import Window
-from loguru import logger
+from typing import Any
+
 import yaml
+from loguru import logger
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as F
+from pyspark.sql.types import (
+    DoubleType,
+    IntegerType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
+from pyspark.sql.window import Window
 
 
 class SparkDataProcessor:
@@ -18,7 +26,9 @@ class SparkDataProcessor:
     Implements resilient, scalable data processing patterns.
     """
 
-    def __init__(self, app_name: str = "ML-Data-Pipeline", config_path: Optional[str] = None):
+    def __init__(
+        self, app_name: str = "ML-Data-Pipeline", config_path: str | None = None
+    ):
         """
         Initialize Spark session with optimized configurations.
 
@@ -58,10 +68,10 @@ class SparkDataProcessor:
 
         return builder.getOrCreate()
 
-    def _load_config(self, config_path: str) -> Dict[str, Any]:
+    def _load_config(self, config_path: str) -> dict[str, Any]:
         """Load YAML configuration file."""
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path) as f:
                 return yaml.safe_load(f)
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
@@ -71,8 +81,8 @@ class SparkDataProcessor:
         self,
         path: str,
         format: str = "parquet",
-        schema: Optional[StructType] = None,
-        **options
+        schema: StructType | None = None,
+        **options,
     ) -> DataFrame:
         """
         Read data from distributed storage with error handling.
@@ -106,8 +116,8 @@ class SparkDataProcessor:
     def process_large_scale_data(
         self,
         df: DataFrame,
-        partition_cols: Optional[List[str]] = None,
-        repartition_num: Optional[int] = None
+        partition_cols: list[str] | None = None,
+        repartition_num: int | None = None,
     ) -> DataFrame:
         """
         Process large-scale data with optimized partitioning.
@@ -140,19 +150,23 @@ class SparkDataProcessor:
     def _handle_missing_values(self, df: DataFrame) -> DataFrame:
         """Intelligent missing value handling."""
         # Fill numeric columns with median
-        numeric_cols = [f.name for f in df.schema.fields
-                       if isinstance(f.dataType, (IntegerType, DoubleType))]
+        numeric_cols = [
+            f.name
+            for f in df.schema.fields
+            if isinstance(f.dataType, (IntegerType, DoubleType))
+        ]
 
         for col in numeric_cols:
             median_val = df.approxQuantile(col, [0.5], 0.01)[0]
             df = df.fillna({col: median_val})
 
         # Fill categorical with mode or 'unknown'
-        string_cols = [f.name for f in df.schema.fields
-                      if isinstance(f.dataType, StringType)]
+        string_cols = [
+            f.name for f in df.schema.fields if isinstance(f.dataType, StringType)
+        ]
 
         for col in string_cols:
-            df = df.fillna({col: 'unknown'})
+            df = df.fillna({col: "unknown"})
 
         return df
 
@@ -161,43 +175,42 @@ class SparkDataProcessor:
         Distributed feature engineering with window functions and aggregations.
         """
         # Time-based features
-        if 'timestamp' in df.columns:
-            df = df.withColumn('hour', F.hour('timestamp'))
-            df = df.withColumn('day_of_week', F.dayofweek('timestamp'))
-            df = df.withColumn('month', F.month('timestamp'))
+        if "timestamp" in df.columns:
+            df = df.withColumn("hour", F.hour("timestamp"))
+            df = df.withColumn("day_of_week", F.dayofweek("timestamp"))
+            df = df.withColumn("month", F.month("timestamp"))
 
         # Statistical features using window functions
-        if 'user_id' in df.columns and 'amount' in df.columns:
-            window_spec = Window.partitionBy('user_id').orderBy('timestamp')
+        if "user_id" in df.columns and "amount" in df.columns:
+            window_spec = Window.partitionBy("user_id").orderBy("timestamp")
 
             df = df.withColumn(
-                'user_avg_amount',
-                F.avg('amount').over(Window.partitionBy('user_id'))
+                "user_avg_amount", F.avg("amount").over(Window.partitionBy("user_id"))
             )
 
             df = df.withColumn(
-                'user_transaction_count',
-                F.count('*').over(Window.partitionBy('user_id'))
+                "user_transaction_count",
+                F.count("*").over(Window.partitionBy("user_id")),
             )
 
-            df = df.withColumn(
-                'running_total',
-                F.sum('amount').over(window_spec)
-            )
+            df = df.withColumn("running_total", F.sum("amount").over(window_spec))
 
         # Interaction features
-        numeric_cols = [f.name for f in df.schema.fields
-                       if isinstance(f.dataType, (IntegerType, DoubleType))]
+        numeric_cols = [
+            f.name
+            for f in df.schema.fields
+            if isinstance(f.dataType, (IntegerType, DoubleType))
+        ]
 
         if len(numeric_cols) >= 2:
             df = df.withColumn(
-                f'{numeric_cols[0]}_{numeric_cols[1]}_interaction',
-                F.col(numeric_cols[0]) * F.col(numeric_cols[1])
+                f"{numeric_cols[0]}_{numeric_cols[1]}_interaction",
+                F.col(numeric_cols[0]) * F.col(numeric_cols[1]),
             )
 
         return df
 
-    def data_quality_checks(self, df: DataFrame) -> Dict[str, Any]:
+    def data_quality_checks(self, df: DataFrame) -> dict[str, Any]:
         """
         Comprehensive data quality validation.
 
@@ -205,19 +218,19 @@ class SparkDataProcessor:
             Dictionary with quality metrics
         """
         quality_report = {
-            'total_records': df.count(),
-            'total_columns': len(df.columns),
-            'null_counts': {},
-            'duplicate_count': df.count() - df.dropDuplicates().count(),
+            "total_records": df.count(),
+            "total_columns": len(df.columns),
+            "null_counts": {},
+            "duplicate_count": df.count() - df.dropDuplicates().count(),
         }
 
         # Check nulls per column
         for col in df.columns:
             null_count = df.filter(F.col(col).isNull()).count()
-            quality_report['null_counts'][col] = null_count
+            quality_report["null_counts"][col] = null_count
 
         # Data profiling
-        quality_report['statistics'] = df.describe().toPandas().to_dict()
+        quality_report["statistics"] = df.describe().toPandas().to_dict()
 
         logger.info(f"Data quality report: {quality_report}")
         return quality_report
@@ -228,8 +241,8 @@ class SparkDataProcessor:
         path: str,
         format: str = "parquet",
         mode: str = "overwrite",
-        partition_by: Optional[List[str]] = None,
-        **options
+        partition_by: list[str] | None = None,
+        **options,
     ):
         """
         Write data to distributed storage with partitioning.
@@ -258,7 +271,7 @@ class SparkDataProcessor:
             logger.error(f"Failed to write data to {path}: {e}")
             raise
 
-    def optimize_table(self, path: str, z_order_cols: Optional[List[str]] = None):
+    def optimize_table(self, path: str, z_order_cols: list[str] | None = None):
         """
         Optimize Delta tables for query performance (Delta Lake).
 
@@ -267,7 +280,9 @@ class SparkDataProcessor:
             z_order_cols: Columns to optimize with Z-ordering
         """
         if z_order_cols:
-            self.spark.sql(f"OPTIMIZE delta.`{path}` ZORDER BY ({','.join(z_order_cols)})")
+            self.spark.sql(
+                f"OPTIMIZE delta.`{path}` ZORDER BY ({','.join(z_order_cols)})"
+            )
         else:
             self.spark.sql(f"OPTIMIZE delta.`{path}`")
 
@@ -280,7 +295,7 @@ class SparkDataProcessor:
         source_path: str,
         checkpoint_path: str,
         output_path: str,
-        trigger_interval: str = "10 seconds"
+        trigger_interval: str = "10 seconds",
     ):
         """
         Create streaming data pipeline for real-time processing.
@@ -293,8 +308,7 @@ class SparkDataProcessor:
         """
         # Read streaming data
         streaming_df = (
-            self.spark.readStream
-            .format("parquet")
+            self.spark.readStream.format("parquet")
             .schema(self._get_schema())
             .load(source_path)
         )
@@ -304,8 +318,7 @@ class SparkDataProcessor:
 
         # Write to sink with checkpointing
         query = (
-            processed_df.writeStream
-            .format("parquet")
+            processed_df.writeStream.format("parquet")
             .option("checkpointLocation", checkpoint_path)
             .trigger(processingTime=trigger_interval)
             .start(output_path)
@@ -316,14 +329,16 @@ class SparkDataProcessor:
 
     def _get_schema(self) -> StructType:
         """Define data schema."""
-        return StructType([
-            StructField("id", StringType(), False),
-            StructField("timestamp", TimestampType(), False),
-            StructField("user_id", StringType(), True),
-            StructField("amount", DoubleType(), True),
-            StructField("category", StringType(), True),
-            StructField("status", StringType(), True),
-        ])
+        return StructType(
+            [
+                StructField("id", StringType(), False),
+                StructField("timestamp", TimestampType(), False),
+                StructField("user_id", StringType(), True),
+                StructField("amount", DoubleType(), True),
+                StructField("category", StringType(), True),
+                StructField("status", StringType(), True),
+            ]
+        )
 
     def close(self):
         """Clean shutdown of Spark session."""

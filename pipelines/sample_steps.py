@@ -5,11 +5,11 @@ This module provides concrete examples of how to create custom execution steps
 for ML pipelines using the ExecutionStep base class.
 """
 
-from typing import Any, Dict
-import pandas as pd
-import numpy as np
 from pathlib import Path
+from typing import Any
 
+import numpy as np
+import pandas as pd
 from pipelines.execution_step import ExecutionStep
 
 
@@ -23,7 +23,7 @@ class DataLoadingStep(ExecutionStep):
     - Context updates
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize data loading step.
 
@@ -33,7 +33,7 @@ class DataLoadingStep(ExecutionStep):
         super().__init__(
             name="data_loading",
             description="Load dataset from specified path",
-            config=config
+            config=config,
         )
 
     def validate(self) -> bool:
@@ -49,12 +49,12 @@ class DataLoadingStep(ExecutionStep):
 
         return True
 
-    def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, _context: dict[str, Any]) -> dict[str, Any]:
         """
         Load data from file.
 
         Args:
-            context: Pipeline context
+            _context: Pipeline context (unused in this step)
 
         Returns:
             Dictionary with loaded dataframe
@@ -75,9 +75,7 @@ class DataLoadingStep(ExecutionStep):
         self.metadata["num_columns"] = len(df.columns)
         self.metadata["columns"] = list(df.columns)
 
-        self.logger.info(
-            f"Loaded {len(df)} rows and {len(df.columns)} columns"
-        )
+        self.logger.info(f"Loaded {len(df)} rows and {len(df.columns)} columns")
 
         return {"dataframe": df}
 
@@ -93,7 +91,7 @@ class DataValidationStep(ExecutionStep):
     - Value ranges
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize data validation step.
 
@@ -104,10 +102,10 @@ class DataValidationStep(ExecutionStep):
             name="data_validation",
             description="Validate data quality and consistency",
             dependencies=["data_loading"],
-            config=config
+            config=config,
         )
 
-    def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Validate the dataframe.
 
@@ -135,7 +133,7 @@ class DataValidationStep(ExecutionStep):
             "missing_percent": missing_percent.to_dict(),
             "num_duplicates": num_duplicates,
             "numeric_stats": numeric_stats.to_dict(),
-            "passed": True
+            "passed": True,
         }
 
         # Apply validation rules
@@ -151,8 +149,7 @@ class DataValidationStep(ExecutionStep):
         if num_duplicates > max_duplicates:
             validation_results["passed"] = False
             self.logger.warning(
-                f"Duplicates exceed threshold: "
-                f"{num_duplicates} > {max_duplicates}"
+                f"Duplicates exceed threshold: {num_duplicates} > {max_duplicates}"
             )
 
         self.metadata["validation_passed"] = validation_results["passed"]
@@ -176,7 +173,7 @@ class FeatureEngineeringStep(ExecutionStep):
     - Feature selection
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize feature engineering step.
 
@@ -187,10 +184,10 @@ class FeatureEngineeringStep(ExecutionStep):
             name="feature_engineering",
             description="Engineer features for model training",
             dependencies=["data_loading"],
-            config=config
+            config=config,
         )
 
-    def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Create engineered features.
 
@@ -245,7 +242,10 @@ class FeatureEngineeringStep(ExecutionStep):
             f"(+{new_features - original_features})"
         )
 
-        return {"dataframe": df, "feature_columns": [col for col in df.columns if col != target_col]}
+        return {
+            "dataframe": df,
+            "feature_columns": [col for col in df.columns if col != target_col],
+        }
 
 
 class ModelTrainingStep(ExecutionStep):
@@ -256,7 +256,7 @@ class ModelTrainingStep(ExecutionStep):
     can be encapsulated as an execution step.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize model training step.
 
@@ -267,16 +267,16 @@ class ModelTrainingStep(ExecutionStep):
             name="model_training",
             description="Train machine learning model",
             dependencies=["data_loading", "feature_engineering"],
-            config=config
+            config=config,
         )
 
-    def pre_execute(self, context: Dict[str, Any]) -> None:
+    def pre_execute(self, _context: dict[str, Any]) -> None:
         """Set up model training environment."""
         self.logger.info("Setting up model training environment")
         # Could initialize GPU, set random seeds, etc.
         np.random.seed(self.config.get("random_seed", 42))
 
-    def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Train the model.
 
@@ -302,7 +302,9 @@ class ModelTrainingStep(ExecutionStep):
         # In a real implementation, this would train an actual model
         model_type = self.config.get("model_type", "linear")
 
-        self.logger.info(f"Training {model_type} model with {len(feature_cols)} features")
+        self.logger.info(
+            f"Training {model_type} model with {len(feature_cols)} features"
+        )
 
         # Mock training metrics
         model_info = {
@@ -322,7 +324,7 @@ class ModelTrainingStep(ExecutionStep):
 
         return {"model_info": model_info}
 
-    def post_execute(self, context: Dict[str, Any], result: Dict[str, Any]) -> None:
+    def post_execute(self, _context: dict[str, Any], _result: dict[str, Any]) -> None:
         """Clean up after model training."""
         self.logger.info("Model training post-processing complete")
         # Could save model, clear GPU memory, etc.
@@ -344,9 +346,9 @@ class StepPipeline:
             steps: List of ExecutionStep instances
         """
         self.steps = steps
-        self.context: Dict[str, Any] = {}
+        self.context: dict[str, Any] = {}
 
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         """
         Execute all steps in sequence.
 
@@ -375,7 +377,7 @@ class StepPipeline:
 
         return self.context
 
-    def get_summary(self) -> list[Dict[str, Any]]:
+    def get_summary(self) -> list[dict[str, Any]]:
         """
         Get summary of all steps.
 
@@ -398,25 +400,23 @@ def run_example_pipeline(data_path: str = "data/raw/sample_data.csv"):
     """
     # Configure steps
     steps = [
-        DataLoadingStep(config={
-            "data_path": data_path,
-            "format": "csv"
-        }),
-        DataValidationStep(config={
-            "max_missing_percent": 5,
-            "max_duplicates": 0
-        }),
-        FeatureEngineeringStep(config={
-            "target_column": "target",
-            "create_interactions": False,
-            "create_polynomials": False,
-            "create_aggregations": True
-        }),
-        ModelTrainingStep(config={
-            "model_type": "gradient_boosting",
-            "target_column": "target",
-            "random_seed": 42
-        })
+        DataLoadingStep(config={"data_path": data_path, "format": "csv"}),
+        DataValidationStep(config={"max_missing_percent": 5, "max_duplicates": 0}),
+        FeatureEngineeringStep(
+            config={
+                "target_column": "target",
+                "create_interactions": False,
+                "create_polynomials": False,
+                "create_aggregations": True,
+            }
+        ),
+        ModelTrainingStep(
+            config={
+                "model_type": "gradient_boosting",
+                "target_column": "target",
+                "random_seed": 42,
+            }
+        ),
     ]
 
     # Create and run pipeline
@@ -436,10 +436,14 @@ def run_example_pipeline(data_path: str = "data/raw/sample_data.csv"):
         print(f"\n{step_summary['name'].upper()}")
         print("-" * 70)
         print(f"Status: {step_summary['status']}")
-        print(f"Execution Time: {step_summary['execution_time']:.3f}s" if step_summary['execution_time'] else "N/A")
-        if step_summary['metadata']:
+        print(
+            f"Execution Time: {step_summary['execution_time']:.3f}s"
+            if step_summary["execution_time"]
+            else "N/A"
+        )
+        if step_summary["metadata"]:
             print("Metadata:")
-            for key, value in step_summary['metadata'].items():
+            for key, value in step_summary["metadata"].items():
                 print(f"  - {key}: {value}")
 
     return results
@@ -448,9 +452,10 @@ def run_example_pipeline(data_path: str = "data/raw/sample_data.csv"):
 if __name__ == "__main__":
     # Run the example pipeline
     import logging
+
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     run_example_pipeline()

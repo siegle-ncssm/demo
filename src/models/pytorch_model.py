@@ -3,16 +3,17 @@ PyTorch Model Implementation
 Advanced neural network architectures with production best practices
 """
 
+from typing import Any
+
+import mlflow
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from torch.optim import Adam, AdamW, SGD
-from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
-from typing import Dict, Any, Optional, Tuple, List
-import numpy as np
 from loguru import logger
-import mlflow
+from torch.optim import SGD, Adam, AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 
@@ -26,7 +27,7 @@ class TabularDataset(Dataset):
     def __len__(self) -> int:
         return len(self.features)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         return self.features[idx], self.labels[idx]
 
 
@@ -40,7 +41,7 @@ class AttentionLayer(nn.Module):
         self.value = nn.Linear(input_dim, attention_dim)
         self.scale = np.sqrt(attention_dim)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         Q = self.query(x)
         K = self.key(x)
         V = self.value(x)
@@ -83,12 +84,12 @@ class AdvancedNeuralNetwork(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dims: List[int],
+        hidden_dims: list[int],
         output_dim: int,
         dropout: float = 0.3,
         use_attention: bool = True,
         use_residual: bool = True,
-        use_batch_norm: bool = True
+        use_batch_norm: bool = True,
     ):
         super().__init__()
 
@@ -99,7 +100,9 @@ class AdvancedNeuralNetwork(nn.Module):
 
         # Input layer
         self.input_layer = nn.Linear(input_dim, hidden_dims[0])
-        self.input_norm = nn.BatchNorm1d(hidden_dims[0]) if use_batch_norm else nn.Identity()
+        self.input_norm = (
+            nn.BatchNorm1d(hidden_dims[0]) if use_batch_norm else nn.Identity()
+        )
 
         # Attention mechanism
         if use_attention:
@@ -113,9 +116,11 @@ class AdvancedNeuralNetwork(nn.Module):
             else:
                 layer = nn.Sequential(
                     nn.Linear(hidden_dims[i], hidden_dims[i + 1]),
-                    nn.BatchNorm1d(hidden_dims[i + 1]) if use_batch_norm else nn.Identity(),
+                    nn.BatchNorm1d(hidden_dims[i + 1])
+                    if use_batch_norm
+                    else nn.Identity(),
                     nn.ReLU(),
-                    nn.Dropout(dropout)
+                    nn.Dropout(dropout),
                 )
                 self.hidden_layers.append(layer)
 
@@ -123,10 +128,8 @@ class AdvancedNeuralNetwork(nn.Module):
         self.output_layer = nn.Linear(hidden_dims[-1], output_dim)
 
     def forward(
-        self,
-        x: torch.Tensor,
-        return_attention: bool = False
-    ) -> torch.Tensor | Tuple[torch.Tensor, torch.Tensor]:
+        self, x: torch.Tensor, return_attention: bool = False
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """Forward pass with optional attention weights return."""
         # Input processing
         x = self.input_layer(x)
@@ -160,8 +163,8 @@ class PyTorchModelTrainer:
     def __init__(
         self,
         model: nn.Module,
-        device: Optional[str] = None,
-        config: Optional[Dict[str, Any]] = None
+        device: str | None = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize trainer.
@@ -172,7 +175,7 @@ class PyTorchModelTrainer:
             config: Training configuration
         """
         self.model = model
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         self.config = config or {}
 
@@ -180,7 +183,7 @@ class PyTorchModelTrainer:
         self.optimizer = None
         self.scheduler = None
         self.criterion = None
-        self.best_loss = float('inf')
+        self.best_loss = float("inf")
         self.patience_counter = 0
 
         logger.info(f"Initialized trainer on device: {self.device}")
@@ -188,51 +191,38 @@ class PyTorchModelTrainer:
 
     def setup_training(
         self,
-        optimizer_name: str = 'adamw',
+        optimizer_name: str = "adamw",
         learning_rate: float = 0.001,
-        scheduler_name: str = 'plateau',
-        loss_fn: str = 'mse'
+        scheduler_name: str = "plateau",
+        loss_fn: str = "mse",
     ):
         """Setup optimizer, scheduler, and loss function."""
         # Optimizer
-        if optimizer_name.lower() == 'adamw':
+        if optimizer_name.lower() == "adamw":
             self.optimizer = AdamW(
-                self.model.parameters(),
-                lr=learning_rate,
-                weight_decay=0.01
+                self.model.parameters(), lr=learning_rate, weight_decay=0.01
             )
-        elif optimizer_name.lower() == 'adam':
+        elif optimizer_name.lower() == "adam":
             self.optimizer = Adam(self.model.parameters(), lr=learning_rate)
-        elif optimizer_name.lower() == 'sgd':
+        elif optimizer_name.lower() == "sgd":
             self.optimizer = SGD(
-                self.model.parameters(),
-                lr=learning_rate,
-                momentum=0.9,
-                nesterov=True
+                self.model.parameters(), lr=learning_rate, momentum=0.9, nesterov=True
             )
 
         # Scheduler
-        if scheduler_name.lower() == 'plateau':
+        if scheduler_name.lower() == "plateau":
             self.scheduler = ReduceLROnPlateau(
-                self.optimizer,
-                mode='min',
-                factor=0.5,
-                patience=5,
-                verbose=True
+                self.optimizer, mode="min", factor=0.5, patience=5, verbose=True
             )
-        elif scheduler_name.lower() == 'cosine':
-            self.scheduler = CosineAnnealingLR(
-                self.optimizer,
-                T_max=50,
-                eta_min=1e-6
-            )
+        elif scheduler_name.lower() == "cosine":
+            self.scheduler = CosineAnnealingLR(self.optimizer, T_max=50, eta_min=1e-6)
 
         # Loss function
-        if loss_fn.lower() == 'mse':
+        if loss_fn.lower() == "mse":
             self.criterion = nn.MSELoss()
-        elif loss_fn.lower() == 'bce':
+        elif loss_fn.lower() == "bce":
             self.criterion = nn.BCEWithLogitsLoss()
-        elif loss_fn.lower() == 'crossentropy':
+        elif loss_fn.lower() == "crossentropy":
             self.criterion = nn.CrossEntropyLoss()
 
         logger.info(f"Training setup: {optimizer_name}, {scheduler_name}, {loss_fn}")
@@ -263,7 +253,7 @@ class PyTorchModelTrainer:
         avg_loss = total_loss / len(dataloader)
         return avg_loss
 
-    def validate(self, dataloader: DataLoader) -> Tuple[float, Dict[str, float]]:
+    def validate(self, dataloader: DataLoader) -> tuple[float, dict[str, float]]:
         """Validate model."""
         self.model.eval()
         total_loss = 0.0
@@ -289,23 +279,21 @@ class PyTorchModelTrainer:
         labels = np.concatenate(all_labels)
 
         metrics = self._calculate_metrics(predictions, labels)
-        metrics['loss'] = avg_loss
+        metrics["loss"] = avg_loss
 
         return avg_loss, metrics
 
     def _calculate_metrics(
-        self,
-        predictions: np.ndarray,
-        labels: np.ndarray
-    ) -> Dict[str, float]:
+        self, predictions: np.ndarray, labels: np.ndarray
+    ) -> dict[str, float]:
         """Calculate evaluation metrics."""
-        from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+        from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
         metrics = {
-            'mse': mean_squared_error(labels, predictions),
-            'mae': mean_absolute_error(labels, predictions),
-            'rmse': np.sqrt(mean_squared_error(labels, predictions)),
-            'r2': r2_score(labels, predictions)
+            "mse": mean_squared_error(labels, predictions),
+            "mae": mean_absolute_error(labels, predictions),
+            "rmse": np.sqrt(mean_squared_error(labels, predictions)),
+            "r2": r2_score(labels, predictions),
         }
 
         return metrics
@@ -316,9 +304,9 @@ class PyTorchModelTrainer:
         val_loader: DataLoader,
         epochs: int = 100,
         early_stopping_patience: int = 10,
-        checkpoint_path: str = 'models/checkpoint.pt',
-        use_mlflow: bool = True
-    ) -> Dict[str, List[float]]:
+        checkpoint_path: str = "models/checkpoint.pt",
+        use_mlflow: bool = True,
+    ) -> dict[str, list[float]]:
         """
         Train model with early stopping and checkpointing.
 
@@ -333,44 +321,45 @@ class PyTorchModelTrainer:
         Returns:
             Training history
         """
-        history = {
-            'train_loss': [],
-            'val_loss': [],
-            'val_metrics': []
-        }
+        history = {"train_loss": [], "val_loss": [], "val_metrics": []}
 
         if use_mlflow:
             mlflow.start_run()
-            mlflow.log_params({
-                'model': self.model.__class__.__name__,
-                'optimizer': self.optimizer.__class__.__name__,
-                'learning_rate': self.optimizer.param_groups[0]['lr'],
-                'epochs': epochs,
-            })
+            mlflow.log_params(
+                {
+                    "model": self.model.__class__.__name__,
+                    "optimizer": self.optimizer.__class__.__name__,
+                    "learning_rate": self.optimizer.param_groups[0]["lr"],
+                    "epochs": epochs,
+                }
+            )
 
         for epoch in range(epochs):
             # Training
             train_loss = self.train_epoch(train_loader)
-            history['train_loss'].append(train_loss)
+            history["train_loss"].append(train_loss)
 
             # Validation
             val_loss, val_metrics = self.validate(val_loader)
-            history['val_loss'].append(val_loss)
-            history['val_metrics'].append(val_metrics)
+            history["val_loss"].append(val_loss)
+            history["val_metrics"].append(val_metrics)
 
             # Logging
             logger.info(
-                f"Epoch {epoch+1}/{epochs} - "
+                f"Epoch {epoch + 1}/{epochs} - "
                 f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}, "
                 f"Val RMSE: {val_metrics['rmse']:.4f}"
             )
 
             if use_mlflow:
-                mlflow.log_metrics({
-                    'train_loss': train_loss,
-                    'val_loss': val_loss,
-                    **{f'val_{k}': v for k, v in val_metrics.items()}
-                }, step=epoch)
+                mlflow.log_metrics(
+                    {
+                        "train_loss": train_loss,
+                        "val_loss": val_loss,
+                        **{f"val_{k}": v for k, v in val_metrics.items()},
+                    },
+                    step=epoch,
+                )
 
             # Learning rate scheduling
             if self.scheduler:
@@ -389,7 +378,7 @@ class PyTorchModelTrainer:
                 self.patience_counter += 1
 
             if self.patience_counter >= early_stopping_patience:
-                logger.info(f"Early stopping triggered at epoch {epoch+1}")
+                logger.info(f"Early stopping triggered at epoch {epoch + 1}")
                 break
 
         if use_mlflow:
@@ -400,33 +389,36 @@ class PyTorchModelTrainer:
 
     def save_checkpoint(self, path: str):
         """Save model checkpoint."""
-        torch.save({
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'best_loss': self.best_loss,
-            'config': self.config
-        }, path)
+        torch.save(
+            {
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "best_loss": self.best_loss,
+                "config": self.config,
+            },
+            path,
+        )
 
     def load_checkpoint(self, path: str):
         """Load model checkpoint."""
         checkpoint = torch.load(path, map_location=self.device)
-        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.load_state_dict(checkpoint["model_state_dict"])
         if self.optimizer:
-            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.best_loss = checkpoint.get('best_loss', float('inf'))
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        self.best_loss = checkpoint.get("best_loss", float("inf"))
         logger.info(f"Loaded checkpoint from {path}")
 
 
-def create_model(input_dim: int, output_dim: int, config: Dict[str, Any]) -> nn.Module:
+def create_model(input_dim: int, output_dim: int, config: dict[str, Any]) -> nn.Module:
     """Factory function to create model from config."""
     model = AdvancedNeuralNetwork(
         input_dim=input_dim,
-        hidden_dims=config.get('hidden_dims', [256, 128, 64]),
+        hidden_dims=config.get("hidden_dims", [256, 128, 64]),
         output_dim=output_dim,
-        dropout=config.get('dropout', 0.3),
-        use_attention=config.get('use_attention', True),
-        use_residual=config.get('use_residual', True),
-        use_batch_norm=config.get('use_batch_norm', True)
+        dropout=config.get("dropout", 0.3),
+        use_attention=config.get("use_attention", True),
+        use_residual=config.get("use_residual", True),
+        use_batch_norm=config.get("use_batch_norm", True),
     )
     return model
 
@@ -438,10 +430,10 @@ if __name__ == "__main__":
 
     # Create model
     config = {
-        'hidden_dims': [256, 128, 64],
-        'dropout': 0.2,
-        'use_attention': True,
-        'use_residual': True
+        "hidden_dims": [256, 128, 64],
+        "dropout": 0.2,
+        "use_attention": True,
+        "use_residual": True,
     }
     model = create_model(input_dim, output_dim, config)
 
@@ -459,7 +451,7 @@ if __name__ == "__main__":
 
     # Train model
     trainer = PyTorchModelTrainer(model, config=config)
-    trainer.setup_training(optimizer_name='adamw', learning_rate=0.001)
+    trainer.setup_training(optimizer_name="adamw", learning_rate=0.001)
     history = trainer.fit(train_loader, val_loader, epochs=10, use_mlflow=False)
 
     logger.info("Training completed successfully")

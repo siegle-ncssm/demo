@@ -3,25 +3,22 @@ Comprehensive tests for ML models
 Demonstrates production testing best practices
 """
 
-import pytest
-import numpy as np
-import pandas as pd
-import torch
-from sklearn.datasets import make_regression, make_classification
-
-import sys
 import os
+import sys
+
+import numpy as np
+import pytest
+import torch
+from sklearn.datasets import make_classification, make_regression
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.models.pytorch_model import (
-    AdvancedNeuralNetwork,
-    PyTorchModelTrainer,
-    create_model as create_pytorch_model
-)
+from src.models.pytorch_model import AdvancedNeuralNetwork, PyTorchModelTrainer
+from src.models.pytorch_model import create_model as create_pytorch_model
 from src.models.sklearn_model import (
-    MLModelFactory,
     HyperparameterOptimizer,
-    ProductionMLPipeline
+    MLModelFactory,
+    ProductionMLPipeline,
 )
 from src.models.tensorflow_model import create_custom_model
 
@@ -39,10 +36,10 @@ class TestPyTorchModels:
     def pytorch_model(self):
         """Create PyTorch model for testing."""
         config = {
-            'hidden_dims': [64, 32],
-            'dropout': 0.2,
-            'use_attention': True,
-            'use_residual': False
+            "hidden_dims": [64, 32],
+            "dropout": 0.2,
+            "use_attention": True,
+            "use_residual": False,
         }
         return create_pytorch_model(input_dim=10, output_dim=1, config=config)
 
@@ -114,22 +111,22 @@ class TestSklearnModels:
         """Generate classification data."""
         return make_classification(n_samples=100, n_features=10, random_state=42)
 
-    @pytest.mark.parametrize("model_type", ['rf', 'xgb', 'lgb'])
+    @pytest.mark.parametrize("model_type", ["rf", "xgb", "lgb"])
     def test_regressor_creation(self, model_type):
         """Test creation of different regressors."""
-        model = MLModelFactory.create_model(model_type, task='regression')
+        model = MLModelFactory.create_model(model_type, task="regression")
         assert model is not None
 
-    @pytest.mark.parametrize("model_type", ['rf', 'xgb', 'lgb'])
+    @pytest.mark.parametrize("model_type", ["rf", "xgb", "lgb"])
     def test_classifier_creation(self, model_type):
         """Test creation of different classifiers."""
-        model = MLModelFactory.create_model(model_type, task='classification')
+        model = MLModelFactory.create_model(model_type, task="classification")
         assert model is not None
 
     def test_model_training(self, regression_data):
         """Test model training."""
         X, y = regression_data
-        model = MLModelFactory.create_model('rf', task='regression')
+        model = MLModelFactory.create_model("rf", task="regression")
 
         model.fit(X[:80], y[:80])
         predictions = model.predict(X[80:])
@@ -139,10 +136,10 @@ class TestSklearnModels:
 
     def test_pipeline_creation(self, regression_data):
         """Test ML pipeline creation."""
-        config = {'task': 'regression'}
+        config = {"task": "regression"}
         pipeline = ProductionMLPipeline(config)
 
-        model = MLModelFactory.create_model('rf', task='regression')
+        model = MLModelFactory.create_model("rf", task="regression")
         pipeline.build_pipeline(model, use_scaling=True)
 
         assert pipeline.pipeline is not None
@@ -150,27 +147,25 @@ class TestSklearnModels:
     def test_pipeline_training(self, regression_data):
         """Test pipeline training and evaluation."""
         X, y = regression_data
-        config = {'task': 'regression'}
+        config = {"task": "regression"}
         pipeline = ProductionMLPipeline(config)
 
-        model = MLModelFactory.create_model('rf', task='regression')
+        model = MLModelFactory.create_model("rf", task="regression")
         pipeline.build_pipeline(model)
 
         metrics = pipeline.train_and_evaluate(
             X[:60], y[:60], X[60:], y[60:], use_mlflow=False
         )
 
-        assert 'rmse' in metrics
-        assert metrics['rmse'] >= 0
+        assert "rmse" in metrics
+        assert metrics["rmse"] >= 0
 
     def test_hyperparameter_optimization(self, regression_data):
         """Test hyperparameter optimization."""
         X, y = regression_data
-        optimizer = HyperparameterOptimizer('rf', task='regression')
+        optimizer = HyperparameterOptimizer("rf", task="regression")
 
-        best_params = optimizer.optimize(
-            X[:80], y[:80], X[80:], y[80:], n_trials=5
-        )
+        best_params = optimizer.optimize(X[:80], y[:80], X[80:], y[80:], n_trials=5)
 
         assert best_params is not None
         assert isinstance(best_params, dict)
@@ -187,12 +182,12 @@ class TestTensorFlowModels:
     def test_model_creation(self):
         """Test TensorFlow model creation."""
         config = {
-            'model_type': 'residual',
-            'input_dim': 10,
-            'output_dim': 1,
-            'num_blocks': 2,
-            'hidden_dim': 64,
-            'task': 'regression'
+            "model_type": "residual",
+            "input_dim": 10,
+            "output_dim": 1,
+            "num_blocks": 2,
+            "hidden_dim": 64,
+            "task": "regression",
         }
 
         model = create_custom_model(config)
@@ -202,14 +197,14 @@ class TestTensorFlowModels:
         """Test model prediction."""
         X, y = sample_data
         config = {
-            'model_type': 'residual',
-            'input_dim': 10,
-            'output_dim': 1,
-            'task': 'regression'
+            "model_type": "residual",
+            "input_dim": 10,
+            "output_dim": 1,
+            "task": "regression",
         }
 
         model = create_custom_model(config)
-        model.compile(optimizer='adam', loss='mse')
+        model.compile(optimizer="adam", loss="mse")
 
         # Train briefly
         model.fit(X[:80], y[:80], epochs=2, verbose=0)
@@ -228,42 +223,42 @@ class TestModelIntegration:
         X, y = make_regression(n_samples=200, n_features=15, random_state=42)
         split = 160
         return {
-            'X_train': X[:split],
-            'y_train': y[:split],
-            'X_test': X[split:],
-            'y_test': y[split:]
+            "X_train": X[:split],
+            "y_train": y[:split],
+            "X_test": X[split:],
+            "y_test": y[split:],
         }
 
     def test_end_to_end_sklearn(self, workflow_data):
         """Test end-to-end workflow with sklearn."""
-        config = {'task': 'regression'}
+        config = {"task": "regression"}
         pipeline = ProductionMLPipeline(config)
 
-        model = MLModelFactory.create_model('xgb', task='regression')
+        model = MLModelFactory.create_model("xgb", task="regression")
         pipeline.build_pipeline(model, use_scaling=True)
 
         metrics = pipeline.train_and_evaluate(
-            workflow_data['X_train'],
-            workflow_data['y_train'],
-            workflow_data['X_test'],
-            workflow_data['y_test'],
-            use_mlflow=False
+            workflow_data["X_train"],
+            workflow_data["y_train"],
+            workflow_data["X_test"],
+            workflow_data["y_test"],
+            use_mlflow=False,
         )
 
         # Verify reasonable performance
-        assert metrics['rmse'] < 100  # Adjust threshold as needed
-        assert metrics['r2'] > -1
+        assert metrics["rmse"] < 100  # Adjust threshold as needed
+        assert metrics["r2"] > -1
 
     def test_model_reproducibility(self, workflow_data):
         """Test model training is reproducible."""
-        model1 = MLModelFactory.create_model('rf', task='regression', random_state=42)
-        model2 = MLModelFactory.create_model('rf', task='regression', random_state=42)
+        model1 = MLModelFactory.create_model("rf", task="regression", random_state=42)
+        model2 = MLModelFactory.create_model("rf", task="regression", random_state=42)
 
-        model1.fit(workflow_data['X_train'], workflow_data['y_train'])
-        model2.fit(workflow_data['X_train'], workflow_data['y_train'])
+        model1.fit(workflow_data["X_train"], workflow_data["y_train"])
+        model2.fit(workflow_data["X_train"], workflow_data["y_train"])
 
-        pred1 = model1.predict(workflow_data['X_test'])
-        pred2 = model2.predict(workflow_data['X_test'])
+        pred1 = model1.predict(workflow_data["X_test"])
+        pred2 = model2.predict(workflow_data["X_test"])
 
         np.testing.assert_array_almost_equal(pred1, pred2)
 

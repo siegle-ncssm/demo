@@ -4,44 +4,43 @@ FastAPI-based REST API for model inference with monitoring and caching
 Demonstrates production ML deployment best practices
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Any, Optional
-import numpy as np
-import pandas as pd
+import hashlib
+import json
 from datetime import datetime
+from typing import Any
+
 import joblib
 import mlflow
+import numpy as np
 import redis
-import json
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from prometheus_client import Counter, Histogram, generate_latest
-from functools import lru_cache
-import hashlib
-
+from pydantic import BaseModel, Field, validator
 
 # Metrics
 PREDICTION_COUNTER = Counter(
-    'prediction_requests_total',
-    'Total number of prediction requests',
-    ['model_name', 'status']
+    "prediction_requests_total",
+    "Total number of prediction requests",
+    ["model_name", "status"],
 )
 
 PREDICTION_LATENCY = Histogram(
-    'prediction_latency_seconds',
-    'Prediction latency in seconds',
-    ['model_name']
+    "prediction_latency_seconds", "Prediction latency in seconds", ["model_name"]
 )
 
 
 # Request/Response Models
 class PredictionRequest(BaseModel):
     """Request model for predictions."""
-    features: List[List[float]] = Field(..., description="Feature matrix for prediction")
-    model_name: Optional[str] = Field(default="default", description="Model name to use")
 
-    @validator('features')
+    features: list[list[float]] = Field(
+        ..., description="Feature matrix for prediction"
+    )
+    model_name: str | None = Field(default="default", description="Model name to use")
+
+    @validator("features")
     def validate_features(cls, v):
         if not v:
             raise ValueError("Features cannot be empty")
@@ -53,14 +52,15 @@ class PredictionRequest(BaseModel):
         schema_extra = {
             "example": {
                 "features": [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-                "model_name": "default"
+                "model_name": "default",
             }
         }
 
 
 class PredictionResponse(BaseModel):
     """Response model for predictions."""
-    predictions: List[float]
+
+    predictions: list[float]
     model_name: str
     model_version: str
     timestamp: str
@@ -69,9 +69,10 @@ class PredictionResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str
     timestamp: str
-    models_loaded: List[str]
+    models_loaded: list[str]
     version: str
 
 
@@ -79,6 +80,7 @@ class ModelLoader:
     """
     Singleton model loader with lazy loading and caching.
     """
+
     _instance = None
     _models = {}
     _model_metadata = {}
@@ -99,18 +101,18 @@ class ModelLoader:
                 # Load from disk
                 self._models[model_name] = joblib.load(model_path)
                 self._model_metadata[model_name] = {
-                    'source': 'disk',
-                    'path': model_path,
-                    'loaded_at': datetime.now().isoformat()
+                    "source": "disk",
+                    "path": model_path,
+                    "loaded_at": datetime.now().isoformat(),
                 }
             else:
                 # Load from MLflow
                 model_uri = f"models:/{model_name}/latest"
                 self._models[model_name] = mlflow.pyfunc.load_model(model_uri)
                 self._model_metadata[model_name] = {
-                    'source': 'mlflow',
-                    'uri': model_uri,
-                    'loaded_at': datetime.now().isoformat()
+                    "source": "mlflow",
+                    "uri": model_uri,
+                    "loaded_at": datetime.now().isoformat(),
                 }
 
             logger.info(f"Successfully loaded model: {model_name}")
@@ -125,11 +127,11 @@ class ModelLoader:
             raise ValueError(f"Model '{model_name}' not loaded")
         return self._models[model_name]
 
-    def get_loaded_models(self) -> List[str]:
+    def get_loaded_models(self) -> list[str]:
         """Get list of loaded models."""
         return list(self._models.keys())
 
-    def get_model_metadata(self, model_name: str) -> Dict[str, Any]:
+    def get_model_metadata(self, model_name: str) -> dict[str, Any]:
         """Get model metadata."""
         return self._model_metadata.get(model_name, {})
 
@@ -139,16 +141,14 @@ class PredictionCache:
     Redis-based prediction cache for repeated queries.
     """
 
-    def __init__(self, redis_host: str = 'localhost', redis_port: int = 6379):
+    def __init__(self, redis_host: str = "localhost", redis_port: int = 6379):
         try:
             self.redis_client = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                decode_responses=True
+                host=redis_host, port=redis_port, decode_responses=True
             )
             self.enabled = True
             logger.info("Redis cache enabled")
-        except:
+        except Exception:  # noqa: BLE001
             self.enabled = False
             logger.warning("Redis not available, caching disabled")
 
@@ -158,7 +158,7 @@ class PredictionCache:
         hash_obj = hashlib.md5(feature_str)
         return f"prediction:{model_name}:{hash_obj.hexdigest()}"
 
-    def get(self, features: np.ndarray, model_name: str) -> Optional[np.ndarray]:
+    def get(self, features: np.ndarray, model_name: str) -> np.ndarray | None:
         """Get cached prediction."""
         if not self.enabled:
             return None
@@ -176,7 +176,13 @@ class PredictionCache:
 
         return None
 
-    def set(self, features: np.ndarray, model_name: str, predictions: np.ndarray, ttl: int = 3600):
+    def set(
+        self,
+        features: np.ndarray,
+        model_name: str,
+        predictions: np.ndarray,
+        ttl: int = 3600,
+    ):
         """Cache prediction."""
         if not self.enabled:
             return
@@ -197,7 +203,7 @@ app = FastAPI(
     description="Production-ready ML model serving with monitoring and caching",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Add CORS middleware
@@ -222,7 +228,7 @@ async def startup_event():
     # Load default model
     try:
         model_loader.load_model("default", "models/default_model.joblib")
-    except:
+    except Exception:  # noqa: BLE001
         logger.warning("Default model not found, will load on demand")
 
     logger.info("API startup complete")
@@ -234,14 +240,10 @@ async def shutdown_event():
     logger.info("Shutting down API...")
 
 
-@app.get("/", response_model=Dict[str, str])
+@app.get("/", response_model=dict[str, str])
 async def root():
     """Root endpoint."""
-    return {
-        "message": "ML Model Serving API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+    return {"message": "ML Model Serving API", "version": "1.0.0", "docs": "/docs"}
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -251,15 +253,12 @@ async def health_check():
         status="healthy",
         timestamp=datetime.now().isoformat(),
         models_loaded=model_loader.get_loaded_models(),
-        version="1.0.0"
+        version="1.0.0",
     )
 
 
 @app.post("/predict", response_model=PredictionResponse)
-async def predict(
-    request: PredictionRequest,
-    background_tasks: BackgroundTasks
-):
+async def predict(request: PredictionRequest, background_tasks: BackgroundTasks):
     """
     Make predictions using loaded model.
 
@@ -282,7 +281,7 @@ async def predict(
 
         if cached_predictions is not None:
             predictions = cached_predictions
-            PREDICTION_COUNTER.labels(model_name=model_name, status='cache_hit').inc()
+            PREDICTION_COUNTER.labels(model_name=model_name, status="cache_hit").inc()
 
         else:
             # Get model
@@ -293,13 +292,10 @@ async def predict(
 
             # Cache predictions in background
             background_tasks.add_task(
-                prediction_cache.set,
-                features,
-                model_name,
-                predictions
+                prediction_cache.set, features, model_name, predictions
             )
 
-            PREDICTION_COUNTER.labels(model_name=model_name, status='success').inc()
+            PREDICTION_COUNTER.labels(model_name=model_name, status="success").inc()
 
         # Calculate latency
         latency = (datetime.now() - start_time).total_seconds() * 1000
@@ -311,27 +307,24 @@ async def predict(
         return PredictionResponse(
             predictions=predictions.tolist(),
             model_name=model_name,
-            model_version=metadata.get('version', 'unknown'),
+            model_version=metadata.get("version", "unknown"),
             timestamp=datetime.now().isoformat(),
-            latency_ms=latency
+            latency_ms=latency,
         )
 
     except ValueError as e:
-        PREDICTION_COUNTER.labels(model_name=model_name, status='error').inc()
+        PREDICTION_COUNTER.labels(model_name=model_name, status="error").inc()
         logger.error(f"Prediction error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     except Exception as e:
-        PREDICTION_COUNTER.labels(model_name=model_name, status='error').inc()
+        PREDICTION_COUNTER.labels(model_name=model_name, status="error").inc()
         logger.error(f"Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @app.post("/batch_predict")
-async def batch_predict(
-    request: PredictionRequest,
-    background_tasks: BackgroundTasks
-):
+async def batch_predict(request: PredictionRequest, background_tasks: BackgroundTasks):
     """
     Batch prediction endpoint for large-scale inference.
 
@@ -350,20 +343,13 @@ async def batch_predict(
 async def list_models():
     """List all loaded models."""
     models = model_loader.get_loaded_models()
-    metadata = {
-        name: model_loader.get_model_metadata(name)
-        for name in models
-    }
+    metadata = {name: model_loader.get_model_metadata(name) for name in models}
 
-    return {
-        "models": models,
-        "metadata": metadata,
-        "count": len(models)
-    }
+    return {"models": models, "metadata": metadata, "count": len(models)}
 
 
 @app.post("/models/{model_name}/load")
-async def load_model(model_name: str, model_path: Optional[str] = None):
+async def load_model(model_name: str, model_path: str | None = None):
     """
     Load a model.
 
@@ -378,11 +364,11 @@ async def load_model(model_name: str, model_path: Optional[str] = None):
         model_loader.load_model(model_name, model_path)
         return {
             "message": f"Model '{model_name}' loaded successfully",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/metrics")
@@ -406,27 +392,23 @@ async def model_info(model_name: str):
         metadata = model_loader.get_model_metadata(model_name)
 
         if not metadata:
-            raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found")
+            raise HTTPException(
+                status_code=404, detail=f"Model '{model_name}' not found"
+            )
 
         return {
             "model_name": model_name,
             "metadata": metadata,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        log_level="info",
-        access_log=True
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info", access_log=True)

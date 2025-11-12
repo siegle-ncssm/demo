@@ -5,15 +5,16 @@ This module provides a flexible framework for creating modular, reusable
 execution steps that can be composed into ML pipelines.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from datetime import datetime
 import logging
+from abc import ABC, abstractmethod
+from datetime import datetime
 from enum import Enum
+from typing import Any
 
 
 class StepStatus(Enum):
     """Execution step status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -43,8 +44,8 @@ class ExecutionStep(ABC):
         self,
         name: str,
         description: str = "",
-        dependencies: Optional[List[str]] = None,
-        config: Optional[Dict[str, Any]] = None
+        dependencies: list[str] | None = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize an execution step.
@@ -60,13 +61,13 @@ class ExecutionStep(ABC):
         self.dependencies = dependencies or []
         self.config = config or {}
         self.status = StepStatus.PENDING
-        self.metadata: Dict[str, Any] = {}
-        self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
-        self.error: Optional[str] = None
+        self.metadata: dict[str, Any] = {}
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
+        self.error: str | None = None
         self.logger = logging.getLogger(f"step.{name}")
 
-    def can_execute(self, completed_steps: List[str]) -> bool:
+    def can_execute(self, completed_steps: list[str]) -> bool:
         """
         Check if this step can execute based on dependencies.
 
@@ -90,7 +91,7 @@ class ExecutionStep(ABC):
         return True
 
     @abstractmethod
-    def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Execute the step's main logic.
 
@@ -107,36 +108,38 @@ class ExecutionStep(ABC):
         """
         pass
 
-    def pre_execute(self, context: Dict[str, Any]) -> None:
+    def pre_execute(self, _context: dict[str, Any]) -> None:
         """
         Hook called before execute(). Override for custom setup logic.
 
         Args:
-            context: Shared pipeline context
+            _context: Shared pipeline context
         """
-        pass
+        # Default implementation does nothing
+        return
 
-    def post_execute(self, context: Dict[str, Any], result: Dict[str, Any]) -> None:
+    def post_execute(self, _context: dict[str, Any], _result: dict[str, Any]) -> None:
         """
         Hook called after successful execute(). Override for custom cleanup logic.
 
         Args:
-            context: Shared pipeline context
-            result: Results returned from execute()
+            _context: Shared pipeline context
+            _result: Results returned from execute()
         """
-        pass
+        # Default implementation does nothing
+        return
 
-    def on_failure(self, context: Dict[str, Any], error: Exception) -> None:
+    def on_failure(self, _context: dict[str, Any], error: Exception) -> None:
         """
         Hook called when execute() raises an exception.
 
         Args:
-            context: Shared pipeline context
+            _context: Shared pipeline context (unused in base implementation)
             error: The exception that was raised
         """
         self.logger.error(f"Step {self.name} failed: {str(error)}")
 
-    def run(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def run(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Execute the full step lifecycle.
 
@@ -203,7 +206,7 @@ class ExecutionStep(ABC):
         self.metadata["skip_reason"] = reason
         self.logger.info(f"Step {self.name} skipped: {reason}")
 
-    def get_execution_time(self) -> Optional[float]:
+    def get_execution_time(self) -> float | None:
         """
         Get the execution time in seconds.
 
@@ -214,7 +217,7 @@ class ExecutionStep(ABC):
             return (self.end_time - self.start_time).total_seconds()
         return None
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """
         Get a summary of the step execution.
 
